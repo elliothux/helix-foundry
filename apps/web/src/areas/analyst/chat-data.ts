@@ -6,6 +6,7 @@ import type {
   AnswerStep,
   Resource,
 } from "../../../../../packages/shared/src";
+import { api } from "../../api";
 import { fieldName } from "../../ui";
 import { formatNumber, plural } from "../../kit/util";
 import { chatListKey } from "./launcher";
@@ -38,14 +39,12 @@ export const fetchChat = (workspaceId: string, chatId: string) =>
   getOrNull<Chat>(
     `/workspaces/${workspaceId}/threads/${encodeURIComponent(chatId)}`,
   );
-// Sent without a JSON content type: the API rejects an empty JSON body.
 export async function deleteChat(workspaceId: string, chatId: string) {
-  const res = await fetch(
-    `/api/v1/workspaces/${workspaceId}/threads/${encodeURIComponent(chatId)}`,
-    { method: "DELETE", credentials: "same-origin" },
+  await api(
+    `/workspaces/${workspaceId}/threads/${encodeURIComponent(chatId)}`,
+    undefined,
+    "DELETE",
   );
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Couldn’t delete this chat");
 }
 const fetchRun = (workspaceId: string, runId: string) =>
   getOrNull<Resource>(

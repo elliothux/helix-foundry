@@ -16,7 +16,7 @@ export async function api<T = any>(
     credentials: "same-origin",
     method: method || (body === undefined ? "GET" : "POST"),
     headers: {
-      ...(body instanceof FormData
+      ...(body === undefined || body instanceof FormData
         ? {}
         : { "content-type": "application/json" }),
       ...(adminToken ? { "x-foundry-admin-token": adminToken } : {}),
