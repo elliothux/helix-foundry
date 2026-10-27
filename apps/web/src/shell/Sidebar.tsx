@@ -376,12 +376,16 @@ function WorkspaceSwitcher({
             {w.name}
           </MenuItem>
         ))}
-        <MenuSeparator />
-        <MenuItem icon={Plus} onSelect={() => setCreating(true)}>
-          Create workspace
-        </MenuItem>
+        {current.role === "owner" && (
+          <>
+            <MenuSeparator />
+            <MenuItem icon={Plus} onSelect={() => setCreating(true)}>
+              Create workspace
+            </MenuItem>
+          </>
+        )}
       </DropdownMenu>
-      {creating && (
+      {creating && current.role === "owner" && (
         <Dialog
           title="Create a workspace"
           description="A new workspace starts with its own data, ontology and team."

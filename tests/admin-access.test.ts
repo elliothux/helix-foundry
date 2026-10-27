@@ -139,3 +139,31 @@ it("limits repeated verification attempts", async () => {
     ).statusCode,
   ).toBe(429);
 });
+
+it("creates workspaces only with the admin token and leaves the list unchanged on rejection", async () => {
+  const url = "/api/v1/workspaces";
+  const before = (await app.inject("/api/v1/me")).json().workspaces;
+  for (const attempt of [{}, { "x-foundry-admin-token": "wrong" }]) {
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url,
+          headers: attempt,
+          payload: { name: "Blocked" },
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect((await app.inject("/api/v1/me")).json().workspaces).toEqual(before);
+  }
+  const created = await app.inject({
+    method: "POST",
+    url,
+    headers,
+    payload: { name: "Admin workspace" },
+  });
+  expect(created.statusCode).toBe(200);
+  expect((await app.inject("/api/v1/me")).json().workspaces).toHaveLength(
+    before.length + 1,
+  );
+});
