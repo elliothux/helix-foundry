@@ -1,3 +1,4 @@
+import { BrandLink } from "../brand";
 import {
   useCallback,
   useEffect,
@@ -32,10 +33,7 @@ function RouteAnnouncer() {
     // Lazy pages render a moment later.
     const timer = setTimeout(() => {
       const heading = document.querySelector<HTMLElement>("#main h1");
-      setText(
-        heading?.textContent?.trim() ||
-          document.title.replace(/ · Helix Foundry$/, ""),
-      );
+      setText(heading?.textContent?.trim() || document.title);
       const active = document.activeElement;
       if (heading && (!active || active === document.body)) {
         if (!heading.hasAttribute("tabindex"))
@@ -154,11 +152,7 @@ export function Shell({
               >
                 <Menu size={18} aria-hidden />
               </button>
-              <Link to="/" className="hf-brand" aria-label="Helix Foundry home">
-                <span className="hf-brand-name">
-                  helix<span>foundry</span>
-                </span>
-              </Link>
+              <BrandLink />
               <span className="hf-mobile-ws">{current.name}</span>
               <button
                 type="button"

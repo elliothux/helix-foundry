@@ -1,4 +1,5 @@
 import { ProviderSetup } from "./setup-components";
+import { WorkspacePreferences } from "./workspace-preferences";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiTokenMetadata } from "../../../packages/shared/src";
@@ -39,6 +40,7 @@ export default function SettingsPage() {
       <div className="tabs standalone">
         {[
           ["models", "AI & models"],
+          ["preferences", "Limits & display"],
           ["developer", "Developer tools"],
         ].map(([value, label]) => (
           <button
@@ -54,6 +56,8 @@ export default function SettingsPage() {
         <section className="reading-width">
           <ProviderSetup />
         </section>
+      ) : tab === "preferences" ? (
+        <WorkspacePreferences />
       ) : (
         <>
           <section className="panel settings-panel">

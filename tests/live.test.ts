@@ -643,10 +643,10 @@ it("counts reading each request against the daily budget", async () => {
   expect(usage[0].data.tokens).toBe(150);
   // With the budget used up, no further model call is made.
   await transaction(store, scope, async (tx) => {
-    const r = (await tx.get("provider"))!;
+    const r = (await tx.get("workspace"))!;
     tx.update(r, {
       ...r.data,
-      settings: { ...r.data.settings, dailyTokens: 1000 },
+      settings: { dailyTokens: 1000, ontologyGraphMaxEntities: 32 },
     });
     const u = (await tx.get(usage[0].id))!;
     tx.update(u, { ...u.data, tokens: 5000 });
@@ -659,4 +659,16 @@ it("counts reading each request against the daily budget", async () => {
   expect(blocked.error).toContain("daily AI budget");
   expect(generate.mock.calls.length).toBe(calls);
   expect(said(socket, "item_2")[0].content).toContain("daily AI budget");
+  await transaction(store, scope, async (tx) => {
+    const r = (await tx.get("workspace"))!;
+    tx.update(r, {
+      ...r.data,
+      settings: { ...r.data.settings, dailyTokens: 0 },
+    });
+  });
+  const resumed = (
+    await request("POST", "/live/sessions/live_123/delegations/item_3", {})
+  ).json();
+  expect(resumed.status).not.toBe("failed");
+  expect(generate.mock.calls.length).toBeGreaterThan(calls);
 });

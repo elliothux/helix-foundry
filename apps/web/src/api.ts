@@ -1,3 +1,9 @@
+// Admin credentials exist only in this page process; never browser storage or cookies.
+let adminToken = "";
+export function setAdminToken(value: string) {
+  adminToken = value;
+}
+
 export async function api<T = any>(
   path: string,
   body?: unknown,
@@ -13,6 +19,7 @@ export async function api<T = any>(
       ...(body instanceof FormData
         ? {}
         : { "content-type": "application/json" }),
+      ...(adminToken ? { "x-foundry-admin-token": adminToken } : {}),
       ...extraHeaders,
     },
     body:

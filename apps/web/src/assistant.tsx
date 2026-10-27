@@ -1,3 +1,4 @@
+import { useBrand } from "./brand";
 // The global Ask panel (WorkspaceContext.ask, from Ask buttons around the
 // app): a compact composer scoped to what the page is about. Asking starts a
 // chat and opens it; answers are read on the chat page, not here.
@@ -17,6 +18,7 @@ export default function Assistant({
   onClose: () => void;
 }) {
   const { id, role } = useWorkspace(),
+    brand = useBrand(),
     ask = useAskAnalyst();
   const key = `foundry.compose.v1:${id}:${context.resourceId || context.page || "overview"}`;
   const [text, setText] = useState(() => context.prompt || readDraft(key)),
@@ -38,7 +40,7 @@ export default function Assistant({
   };
   return (
     <Dialog
-      title={context.title ? "Ask about " + context.title : "Ask Foundry"}
+      title={context.title ? "Ask about " + context.title : `Ask ${brand}`}
       description="Your question opens as a chat, where you can ask follow-ups."
       className="an-ask-dialog"
       onClose={onClose}

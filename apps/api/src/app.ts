@@ -1,5 +1,6 @@
 import { withDatasetPrivacy } from "./dataset-privacy.js";
 import { registerOnboarding } from "./onboarding.js";
+import { isAdminRequest, registerAdmin } from "./admin.js";
 import { registerHosting } from "./hosting.js";
 import { publicResource } from "./onboarding-state.js";
 import { effectiveObject } from "./context.js";
@@ -69,6 +70,8 @@ export async function createApp(store: Store) {
         ? {
             redact: [
               "req.headers.authorization",
+              'req.headers["x-foundry-admin-token"]',
+              "body.token",
               "req.headers.cookie",
               "body.password",
               "body.apiKey",
@@ -94,6 +97,7 @@ export async function createApp(store: Store) {
     max: config.rateLimit,
     timeWindow: "1 minute",
   });
+  registerAdmin(app);
   await app.register(swagger, {
     transform: openapiTransform,
     openapi: {
@@ -165,9 +169,13 @@ export async function createApp(store: Store) {
       "Workspace not found",
       404,
     );
+    const role: Role =
+      a.session.kind === "session" && !isAdminRequest(req)
+        ? "viewer"
+        : member.data.role;
     const roles = { viewer: 0, editor: 1, owner: 2 };
     assert(
-      roles[member.data.role as Role] >= roles[min] &&
+      roles[role] >= roles[min] &&
         !(
           a.session.kind === "token" &&
           a.session.data.readOnly &&
@@ -176,7 +184,7 @@ export async function createApp(store: Store) {
       "Insufficient workspace permissions",
       403,
     );
-    return { ...a, scope, role: member.data.role };
+    return { ...a, scope, role };
   }
   async function newWorkspace(owner: Resource, name: string) {
     const id = randomUUID();
@@ -283,13 +291,17 @@ export async function createApp(store: Store) {
         members.map(async (m) => ({
           id: m.data.workspaceId,
           name: (await store.get(m.data.workspaceId, "workspace"))?.name,
-          role: m.data.role,
+          role:
+            a.session.kind === "session" && !isAdminRequest(req)
+              ? "viewer"
+              : m.data.role,
         })),
       ),
     };
   });
   app.post("/api/v1/workspaces", async (req) => {
     const a = await user(req);
+    assert(isAdminRequest(req), "Admin token required", 403);
     assert(
       a.session.kind === "session",
       "API tokens can't create workspaces",

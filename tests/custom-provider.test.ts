@@ -80,6 +80,7 @@ for (const apiFormat of ["chat-completions", "responses"] as const)
     } else {
       expect(body.text.format).toMatchObject({ strict: true, schema });
       expect(body.store).toBe(false);
+      expect(body).not.toHaveProperty("max_output_tokens");
     }
   });
 

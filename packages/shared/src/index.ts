@@ -78,6 +78,13 @@ export function bedrockEndpoint(region: string) {
 export function bedrockRegion(endpoint?: string) {
   return endpoint?.match(/bedrock-runtime(?:-fips)?\.([a-z0-9-]+)\./)?.[1];
 }
+export const WorkspaceSettingsSchema = z.object({
+  brandName: z.string().trim().max(80).default(""),
+  dailyTokens: z.number().int().nonnegative().default(0),
+  ontologyGraphMaxEntities: z.number().int().nonnegative().default(32),
+});
+export type WorkspaceSettings = z.infer<typeof WorkspaceSettingsSchema>;
+
 export const ProviderSchema = z
   .object({
     provider: z.enum([
@@ -93,7 +100,6 @@ export const ProviderSchema = z
     apiFormat: z.enum(["chat-completions", "responses"]).optional(),
     apiKey: z.string().optional(),
     allowRawData: z.boolean().default(false),
-    dailyTokens: z.number().int().min(1000).max(10_000_000).default(200_000),
     maxCalls: z.number().int().min(1).max(20).default(20),
     timeoutSeconds: z.number().int().min(30).max(1800).default(600),
     continuous: z.boolean().default(true),

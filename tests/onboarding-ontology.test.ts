@@ -801,3 +801,16 @@ it("tries a build again by itself when the database stops, and resumes it", asyn
     spy.mockRestore();
   }
 });
+
+it("can compute a stable ontology without queuing AI descriptions", async () => {
+  await samples();
+  await provider();
+  const response = await request("POST", "/onboarding/ontology", {
+    describe: false,
+  });
+  expect(response.statusCode).toBe(200);
+  const state = response.json();
+  expect(state.ontology.entities.length).toBeGreaterThan(0);
+  expect(state.ontology.described).toBe(false);
+  expect(state.ontologyRun).toBeUndefined();
+});

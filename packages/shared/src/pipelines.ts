@@ -29,5 +29,16 @@ export const PipelineSchema = z.object({
   inputs: z.array(z.string()).min(1),
   sql: z.string().min(1),
   nodes: z.array(PipelineNodeSchema).default([]),
-  checks: z.array(z.object({ name: z.string(), sql: z.string() })).default([]),
+  checks: z
+    .array(
+      z.object({
+        name: z.string(),
+        sql: z
+          .string()
+          .describe(
+            "SELECT returning one row of boolean pass values: true (or 1) means passed. For a violations query, return count(*) = 0 AS ok, not the raw count.",
+          ),
+      }),
+    )
+    .default([]),
 });

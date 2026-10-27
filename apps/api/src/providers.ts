@@ -170,7 +170,8 @@ export class Provider implements ModelProvider {
       }
       body = {
         model: s.model,
-        max_output_tokens: 8192,
+        // Custom endpoints own the model's default, including reasoning tokens.
+        max_output_tokens: s.provider === "custom" ? undefined : 8192,
         store: false,
         instructions: system,
         input: user,

@@ -212,10 +212,9 @@ function ownKey(x: Info) {
   const unique = x.columns.filter((c) => c.primaryKey && keyType(c.type));
   const nouns = words(x.table).map(singular);
   return (
+    unique.find((c) => words(c.name).join("_") === "id") ??
     unique.find(
-      (c) =>
-        words(c.name).join("_") === "id" ||
-        (idName(c.name) && nouns.includes(stem({ name: c.name, ds: x }))),
+      (c) => idName(c.name) && nouns.includes(stem({ name: c.name, ds: x })),
     ) ??
     unique.find((c) => idName(c.name)) ??
     unique.find((c) => keyName(c.name) && !email(c.name)) ??
@@ -350,7 +349,7 @@ export async function suggestOntology(
       if (
         keyType(c.type) &&
         (keyName(c.name) || refersTo(x, c.name)) &&
-        c.distinct >= 2
+        c.distinct > 0
       )
         column(x, c);
       for (const f of structFields(c.type)) if (keyName(f)) column(x, c, f);
@@ -396,13 +395,17 @@ export async function suggestOntology(
     const aw = words(A.name),
       bw = words(B.name);
     // Two uploads are one system to the user: a conventional foreign key between
-    // them (subscriptions.customer_id) is a link, while a key named for another
+    // them (including qualified keys into compound table names) is a link, while a key named for another
     // system (stripe_customer_id, external_id) can still mean the same record.
     const conventional =
       aw.join("_") === bw.join("_") ||
       (aw.length > 1 &&
         idName(A.name) &&
-        aw.slice(0, -1).map(singular).join("_") === noun(B.ds.table));
+        (aw.slice(0, -1).map(singular).join("_") === noun(B.ds.table) ||
+          (words(B.ds.table).length > 1 &&
+            words(B.ds.table)
+              .map(singular)
+              .some((word) => aw.slice(0, -1).map(singular).includes(word)))));
     // Merging needs exact matches, so the combined record joins without lower().
     const exact =
       r.m_exact / r.a_distinct >= 0.8 || r.a_rows_exact / r.a_rows >= 0.9;
@@ -553,7 +556,7 @@ export async function suggestOntology(
       id: "",
     };
     const joined = new Set([anchor]);
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
       for (const e of tree) {
         const [inner, outer] = joined.has(e.A.ds)
@@ -1055,7 +1058,7 @@ ORDER BY pc.m_ci DESC, pc.a, pc.b`;
   const ids = [...new Set(cols.map((c) => c.ds.d.id))];
   // The executor returns at most 1000 rows a call.
   const rows: Record<string, unknown>[] = [];
-  for (let total = Infinity; rows.length < total; ) {
+  for (let total = Infinity; rows.length < total;) {
     const r = await queryDatasets(store, scope, ids, sql, {
       limit: 1000,
       offset: rows.length,
@@ -1317,7 +1320,7 @@ export function ontologyBundle(
       keyColumns.set(e.id, keys);
       const joined = new Set([e.anchorDatasetId]),
         joins: string[] = [];
-      for (let grew = true; grew; ) {
+      for (let grew = true; grew;) {
         grew = false;
         for (const m of e.members)
           if (

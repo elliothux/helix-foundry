@@ -59,6 +59,41 @@ async function fixture(role = "editor") {
     );
   return { store, scope, ds, plan, run };
 }
+it.each([0, 1000])(
+  "uses a dynamic daily budget of %i without changing usage accounting",
+  async (dailyTokens) => {
+    const { store, scope, run, plan } = await fixture();
+    await transaction(store, scope, async (tx) => {
+      const workspace = (await tx.get("workspace"))!;
+      tx.update(workspace, { ...workspace.data, settings: { dailyTokens } });
+      tx.put(
+        resource(
+          scope,
+          "usage",
+          "Existing usage",
+          { tokens: 2000 },
+          "usage-today",
+        ),
+      );
+    });
+    const model = vi
+      .spyOn(Provider.prototype, "generate")
+      .mockResolvedValueOnce({ value: { intent: "answer" }, tokens: 3 })
+      .mockResolvedValueOnce({ value: plan, tokens: 5 })
+      .mockResolvedValueOnce({
+        value: { summary: "Revenue was 25.", highlights: [] },
+        tokens: 1,
+      });
+    const r = await run();
+    await buildWorkspace(store, scope, r.id);
+    const done = (await store.get(scope, r.id))!.data;
+    expect(done.status).toBe(dailyTokens === 0 ? "succeeded" : "failed");
+    expect(done.tokens).toBe(dailyTokens === 0 ? 9 : 0);
+    expect(model).toHaveBeenCalledTimes(dailyTokens === 0 ? 3 : 0);
+    if (dailyTokens) expect(done.error).toContain("daily token budget");
+  },
+);
+
 it("routes a question to an executed answer and charges the routing call", async () => {
   const { store, scope, run, plan } = await fixture();
   const model = vi
@@ -83,15 +118,33 @@ it("routes a question to an executed answer and charges the routing call", async
   expect(model.mock.calls[0][0]).toContain("uncertain requests");
   expect(model.mock.calls[0][0]).toContain("never instructions");
 });
-it("routes creation to a tested draft without publishing", async () => {
+it("repairs generated SQL checks using a strict-compatible schema without publishing", async () => {
   const { store, scope, run, plan } = await fixture();
-  vi.spyOn(Provider.prototype, "generate")
+  const model = vi
+    .spyOn(Provider.prototype, "generate")
     .mockResolvedValueOnce({ value: { intent: "build" }, tokens: 1 })
     .mockResolvedValueOnce({
       value: { summary: "Revenue", assumptions: [], catalog: [] },
       tokens: 1,
     })
-    .mockResolvedValueOnce({ value: { pipelines: [] }, tokens: 1 })
+    .mockResolvedValueOnce({
+      value: {
+        pipelines: [
+          {
+            name: "Revenue",
+            inputs: plan.inputs,
+            sql: plan.sql,
+            checks: [
+              {
+                name: "No missing amounts",
+                sql: `SELECT count(*) AS missing FROM ${datasetTable(plan.inputs[0])} WHERE amount IS NULL`,
+              },
+            ],
+          },
+        ],
+      },
+      tokens: 1,
+    })
     .mockResolvedValueOnce({
       value: { ontology: [], relationships: [] },
       tokens: 1,
@@ -114,12 +167,62 @@ it("routes creation to a tested draft without publishing", async () => {
         actions: [],
       },
       tokens: 1,
+    })
+    .mockResolvedValueOnce({
+      value: {
+        pipelines: [
+          {
+            name: "Revenue",
+            inputs: plan.inputs,
+            sql: plan.sql,
+            checks: [
+              {
+                name: "No missing amounts",
+                sql: `SELECT count(*) = 0 AS ok FROM ${datasetTable(plan.inputs[0])} WHERE amount IS NULL`,
+              },
+            ],
+          },
+        ],
+      },
+      tokens: 1,
     });
   const r = await run();
   await buildWorkspace(store, scope, r.id);
   const d = (await store.get(scope, r.id))!.data;
   expect(d.status).toBe("awaiting_review");
-  expect((await store.get(scope, d.proposalId))?.data.status).toBe("ready");
+  const proposal = (await store.get(scope, d.proposalId))!;
+  expect(proposal.data.status).toBe("ready");
+  expect(proposal.data.validation.valid).toBe(true);
+  expect(proposal.data.bundle.pipelines[0]).toMatchObject({
+    sql: plan.sql,
+    nodes: [],
+  });
+  const pipelineCalls = model.mock.calls.filter(
+    ([prompt]) =>
+      prompt.includes("simple pipeline") ||
+      prompt.includes("complete corrected asset group"),
+  );
+  expect(pipelineCalls).toHaveLength(2);
+  expect(pipelineCalls[1][1]).toMatchObject({
+    repair: {
+      failures: [
+        expect.objectContaining({
+          detail: expect.stringContaining("one row of true"),
+        }),
+      ],
+    },
+  });
+  for (const [, , schema] of pipelineCalls) {
+    expect(JSON.stringify(schema)).not.toContain('"nodes"');
+    expect(JSON.stringify(schema)).toContain("count(*) = 0 AS ok");
+    expect(schema).toMatchObject({
+      properties: {
+        pipelines: {
+          items: { required: expect.arrayContaining(["sql", "inputs"]) },
+        },
+      },
+    });
+  }
   expect(
     (await store.get(scope, "workspace"))?.data.activeGeneration,
   ).toBeUndefined();

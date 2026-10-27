@@ -1,3 +1,4 @@
+import { useBrand } from "../brand";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   compareIntervals,
@@ -218,16 +219,17 @@ export const PageVisitContext = createContext<(title: string) => void>(
   () => {},
 );
 export function useTitle(title?: string) {
-  const visit = useContext(PageVisitContext);
+  const visit = useContext(PageVisitContext),
+    brand = useBrand();
   useEffect(() => {
     if (!title) return;
     const previous = document.title;
-    document.title = `${title} · Helix Foundry`;
+    document.title = `${title} · ${brand}`;
     visit(title);
     return () => {
       document.title = previous;
     };
-  }, [title]);
+  }, [title, brand]);
 }
 // Tracks a media query, e.g. "(max-width: 800px)".
 export function useMedia(query: string) {

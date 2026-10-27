@@ -467,6 +467,9 @@ export function registerOnboarding(
   // summary, descriptions and link names in a background run.
   app.post(base + "/ontology", async (req) => {
     const a = await access(req, "editor");
+    const options = z
+      .object({ describe: z.boolean().default(true) })
+      .parse(req.body ?? {});
     const state = await onboardingState(store, a.scope);
     assert(!state.sampleProgress, "Sample data is still loading.", 409);
     assert(state.inputsReady, state.blockers.join(" "), 409);
@@ -489,6 +492,7 @@ export function registerOnboarding(
           : suggestion;
       const linked = m.ontologyRunId && (await tx.get(m.ontologyRunId));
       const describe =
+        options.describe &&
         state.providerReady &&
         !current.described &&
         linked?.data.onboardingSignature !== state.signature;

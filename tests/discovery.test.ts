@@ -884,3 +884,64 @@ it("reduces discovery stored by older releases once, with the same links", async
   );
   expect(await store.get(s, "migration_state")).toBeUndefined();
 });
+
+it("keeps unique foreign keys into compound upload tables as links, including singleton targets", async () => {
+  const { suggestion, links } = await suggestFor([
+    {
+      name: "ModelRun",
+      rows: [
+        {
+          id: "run-a",
+          model_artifact_id: "file-a",
+          supplier_quote_id: "supplier-a",
+        },
+        {
+          id: "run-b",
+          model_artifact_id: "file-b",
+          supplier_quote_id: "supplier-a",
+        },
+      ],
+    },
+    {
+      name: "ArtifactVersion",
+      rows: [
+        { id: "file-a", document_quote_id: "quote-a" },
+        { id: "file-b", document_quote_id: "quote-b" },
+      ],
+    },
+    { name: "QuoteRevision", rows: [{ id: "quote-a" }, { id: "quote-b" }] },
+    { name: "SupplierQuote", rows: [{ id: "supplier-a" }] },
+  ]);
+  expect(suggestion.entities).toHaveLength(4);
+  expect(suggestion.entities.every((e) => e.members.length === 1)).toBe(true);
+  expect(links).toContain("model_run.model_artifact_id->artifact_version.id");
+  expect(links).toContain(
+    "artifact_version.document_quote_id->quote_revision.id",
+  );
+  expect(links).toContain("model_run.supplier_quote_id->supplier_quote.id");
+});
+
+it("prefers an explicit id over an earlier unique foreign key", async () => {
+  const { suggestion, links } = await suggestFor([
+    {
+      name: "InputVersion",
+      rows: [
+        { file_version_id: "file-a", id: "input-a" },
+        { file_version_id: "file-b", id: "input-b" },
+      ],
+    },
+    { name: "ArtifactVersion", rows: [{ id: "file-a" }, { id: "file-b" }] },
+    {
+      name: "Configuration",
+      rows: [
+        { id: "config-a", input_id: "input-a" },
+        { id: "config-b", input_id: "input-b" },
+      ],
+    },
+  ]);
+  expect(suggestion.entities.find((e) => e.id === "input_version")?.key).toBe(
+    "id",
+  );
+  expect(links).toContain("configuration.input_id->input_version.id");
+  expect(links).toContain("input_version.file_version_id->artifact_version.id");
+});

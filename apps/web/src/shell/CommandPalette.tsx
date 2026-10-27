@@ -1,3 +1,4 @@
+import { useAdminAccess } from "../admin-access";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
@@ -81,6 +82,7 @@ export function CommandPalette({
     askAnalyst = useAskAnalyst(),
     [theme, setTheme] = useTheme(),
     small = useMedia("(max-width: 800px)");
+  const { requestAccess } = useAdminAccess();
   const [query, setQuery] = useState(initialQuery),
     [active, setActive] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null),
@@ -117,7 +119,9 @@ export function CommandPalette({
   const q = query.trim().toLowerCase();
   const go = (to: string) => () => {
     onClose();
-    navigate(to);
+    if (to.split("?")[0] === paths.settings())
+      void requestAccess(() => navigate(to));
+    else navigate(to);
   };
   const entries = useMemo(() => {
     const out: Entry[] = [];
@@ -267,7 +271,13 @@ export function CommandPalette({
     return out;
     // `go`, `ask` and `askAnalyst` are recreated each render but only close
     // over stable values.
-  }, [query, results.map((r) => r.dataUpdatedAt).join(), role, theme]);
+  }, [
+    query,
+    results.map((r) => r.dataUpdatedAt).join(),
+    role,
+    theme,
+    requestAccess,
+  ]);
   useEffect(() => setActive(0), [q]);
   useEffect(() => {
     list.current

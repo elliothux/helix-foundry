@@ -5,6 +5,7 @@ import {
   type Resource,
 } from "../../../packages/shared/src/index.js";
 import type { Store } from "./store.js";
+import { workspaceSettings } from "./workspace-settings.js";
 import {
   enqueue,
   providerSettings,
@@ -485,8 +486,10 @@ export function createLiveBridge(store: Store) {
       (t) => t !== task && t.question,
     );
     // Reading the request is a model call: it counts against the budget.
+    const { dailyTokens } = await workspaceSettings(store, session.scope);
     assert(
-      (await tokensToday(store, session.scope)) < settings.dailyTokens,
+      dailyTokens === 0 ||
+        (await tokensToday(store, session.scope)) < dailyTokens,
       "The workspace's daily AI budget is used up.",
       429,
     );

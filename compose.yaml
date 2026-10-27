@@ -9,11 +9,15 @@ x-app: &app
     ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Run scripts/setup.sh first}
     INTERNAL_KEY: ${INTERNAL_KEY:?Run scripts/setup.sh first}
     APP_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3001}
+    ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     HELIX_URL: http://helix:8080
     EXECUTOR_URL: http://executor:3002
     OLLAMA_URL: ${MODEL_ENDPOINT:-http://ollama:11434}
     # How long the model stays in memory after a question (Ollama keep_alive).
     MODEL_KEEP_ALIVE: ${MODEL_KEEP_ALIVE:-30s}
+    # Defaults for workspaces without saved Limits & display settings.
+    AI_DAILY_TOKEN_LIMIT: ${AI_DAILY_TOKEN_LIMIT:-0}
+    ONTOLOGY_GRAPH_MAX_ENTITIES: ${ONTOLOGY_GRAPH_MAX_ENTITIES:-32}
     INLINE_WORKER: "false"
     # Listens on the container network; the port is published on loopback only.
     ALLOW_NETWORK_ACCESS: "true"

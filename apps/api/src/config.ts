@@ -1,7 +1,15 @@
 import "dotenv/config";
 import { resolve } from "node:path";
 import { checkTimeLimits } from "../../../services/executor/src/limits.js";
+import { WorkspaceSettingsSchema } from "../../../packages/shared/src/index.js";
 export const config = {
+  adminToken: process.env.ADMIN_TOKEN || "",
+  workspaceDefaults: WorkspaceSettingsSchema.parse({
+    dailyTokens: Number(process.env.AI_DAILY_TOKEN_LIMIT?.trim() || 0),
+    ontologyGraphMaxEntities: Number(
+      process.env.ONTOLOGY_GRAPH_MAX_ENTITIES?.trim() || 32,
+    ),
+  }),
   port: Number(process.env.PORT || 3001),
   host: process.env.HOST || "127.0.0.1",
   // There is no sign-in, so listening beyond this computer must be explicit

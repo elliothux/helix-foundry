@@ -7,6 +7,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useWorkspaceSettings } from "./workspace-preferences";
 import {
   ArrowLeft,
   ArrowRight,
@@ -106,8 +107,6 @@ const cardHeight = (e: SuggestedEntity, lines: number) =>
   20 * e.members.length +
   (e.members.length > 1 || e.kind === "activity" ? 26 : 0);
 const VW = 1000;
-// Past this many entities cards get too small to read, so they stack instead.
-const MAX_DRAWN = 16;
 // Narrower cards cut names and tables short, so the schema stacks instead.
 const MIN_CARD = 250;
 const MIN_CARD_READONLY = 200;
@@ -210,7 +209,7 @@ function arrange(entities: SuggestedEntity[], links: SuggestedLink[]) {
         a - b,
     );
   const hub = rank[0] ?? 0;
-  const cols = n <= 9 ? 3 : n <= 16 ? 4 : 5,
+  const cols = n <= 9 ? 3 : 4,
     rows = n <= 3 ? 1 : Math.ceil((n + 1) / cols),
     slots = rows * cols,
     hubSlot = Math.floor((rows - 1) / 2) * cols + Math.floor((cols - 1) / 2);
@@ -777,12 +776,12 @@ export function SuggestedOntologyView({
   const editingRef = useRef<string | null>(null);
   editingRef.current = editing;
   const { entities, links, notes, unplaced } = ontology;
+  const settings = useWorkspaceSettings();
+  const maxDrawn = settings.data?.ontologyGraphMaxEntities ?? 32;
+  const canDraw = maxDrawn === 0 || entities.length <= maxDrawn;
   const arrangement = useMemo(
-    () =>
-      entities.length && entities.length <= MAX_DRAWN
-        ? arrange(entities, links)
-        : null,
-    [entities, links],
+    () => (entities.length && canDraw ? arrange(entities, links) : null),
+    [entities, links, canDraw],
   );
   const wide = !!arrangement && gridOf(arrangement) > 3;
   const root = useRef<HTMLDivElement>(null);
@@ -1021,7 +1020,7 @@ export function SuggestedOntologyView({
           <h2 id={`${uid}-schema`} className="so-sr">
             Suggested entities
           </h2>
-          {!layout && entities.length > 1 && entities.length <= MAX_DRAWN && (
+          {!layout && entities.length > 1 && canDraw && (
             <MiniMap
               entities={entity}
               links={links}

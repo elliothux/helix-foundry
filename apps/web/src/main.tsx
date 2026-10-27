@@ -1,3 +1,5 @@
+import { AdminAccessProvider, AdminSettingsGate } from "./admin-access";
+import { WorkspaceBrand } from "./workspace-preferences";
 import React, {
   Suspense,
   lazy,
@@ -90,7 +92,14 @@ function WorkspaceRoutes() {
       <Route path="/dashboards/*" element={<Navigate to="/" replace />} />
       <Route path="/activity" element={<Navigate to="/" replace />} />
       <Route path="/proposals" element={<ProposalsPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route
+        path="/settings"
+        element={
+          <AdminSettingsGate>
+            <SettingsPage />
+          </AdminSettingsGate>
+        }
+      />
       <Route path="/advanced" element={<Navigate to="/data" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -216,83 +225,90 @@ function App() {
   if (inSetup)
     return (
       <WorkspaceContext.Provider value={context}>
-        <div className="app-shell is-setup">
-          <div className="main-shell">
-            <main key={selected.id}>
-              <Suspense fallback={<Loading />}>
-                <Onboarding />
-              </Suspense>
-            </main>
+        <WorkspaceBrand>
+          <div className="app-shell is-setup">
+            <div className="main-shell">
+              <main key={selected.id}>
+                <Suspense fallback={<Loading />}>
+                  <Onboarding />
+                </Suspense>
+              </main>
+            </div>
           </div>
-        </div>
-        {toast && (
-          <div
-            role={toast.error ? "alert" : "status"}
-            className={"toast " + (toast.error ? "error" : "")}
-          >
-            <span>{toast.text}</span>
-            <button aria-label="Dismiss" onClick={() => setToast(null)}>
-              <X size={16} />
-            </button>
-          </div>
-        )}
+          {toast && (
+            <div
+              role={toast.error ? "alert" : "status"}
+              className={"toast " + (toast.error ? "error" : "")}
+            >
+              <span>{toast.text}</span>
+              <button aria-label="Dismiss" onClick={() => setToast(null)}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+        </WorkspaceBrand>
       </WorkspaceContext.Provider>
     );
   return (
     <WorkspaceContext.Provider value={context}>
-      <div className="hf-app">
-        <LiveActivityProvider workspaceId={selected.id}>
-          {/* Keyed by workspace: switching ends voice and its microphone. */}
-          <VoiceProvider key={selected.id} workspaceId={selected.id}>
-            <Shell
-              workspaces={me.data.workspaces}
-              current={selected}
-              user={me.data.user}
-              onSwitch={setChosen}
-            >
-              <RouteErrorBoundary resetKey={location.pathname}>
-                <Suspense fallback={<RouteFallback />}>
-                  <div key={selected.id} className="hf-route">
-                    <WorkspaceRoutes />
-                  </div>
+      <WorkspaceBrand>
+        <div className="hf-app">
+          <LiveActivityProvider workspaceId={selected.id}>
+            {/* Keyed by workspace: switching ends voice and its microphone. */}
+            <VoiceProvider key={selected.id} workspaceId={selected.id}>
+              <Shell
+                workspaces={me.data.workspaces}
+                current={selected}
+                user={me.data.user}
+                onSwitch={setChosen}
+              >
+                <RouteErrorBoundary resetKey={location.pathname}>
+                  <Suspense fallback={<RouteFallback />}>
+                    <div key={selected.id} className="hf-route">
+                      <WorkspaceRoutes />
+                    </div>
+                  </Suspense>
+                </RouteErrorBoundary>
+              </Shell>
+            </VoiceProvider>
+            {askContext && (
+              <ChromeBoundary
+                name="Ask panel"
+                onError={() => {
+                  setAskContext(null);
+                  setToast({
+                    text: "The Ask panel hit a problem.",
+                    error: true,
+                  });
+                }}
+              >
+                <Suspense fallback={null}>
+                  <AnalystPanel
+                    key={
+                      selected.id +
+                      ":" +
+                      (askContext.resourceId || askContext.page)
+                    }
+                    context={askContext}
+                    onClose={() => setAskContext(null)}
+                  />
                 </Suspense>
-              </RouteErrorBoundary>
-            </Shell>
-          </VoiceProvider>
-          {askContext && (
-            <ChromeBoundary
-              name="Ask panel"
-              onError={() => {
-                setAskContext(null);
-                setToast({ text: "The Ask panel hit a problem.", error: true });
-              }}
-            >
-              <Suspense fallback={null}>
-                <AnalystPanel
-                  key={
-                    selected.id +
-                    ":" +
-                    (askContext.resourceId || askContext.page)
-                  }
-                  context={askContext}
-                  onClose={() => setAskContext(null)}
-                />
-              </Suspense>
-            </ChromeBoundary>
-          )}
-          {toast && (
-            <div
-              role={toast.error ? "alert" : "status"}
-              className={"hf-toast" + (toast.error ? " is-error" : "")}
-            >
-              <span>{toast.text}</span>
-              <button aria-label="Dismiss" onClick={() => setToast(null)}>
-                <X size={15} />
-              </button>
-            </div>
-          )}
-        </LiveActivityProvider>
-      </div>
+              </ChromeBoundary>
+            )}
+            {toast && (
+              <div
+                role={toast.error ? "alert" : "status"}
+                className={"hf-toast" + (toast.error ? " is-error" : "")}
+              >
+                <span>{toast.text}</span>
+                <button aria-label="Dismiss" onClick={() => setToast(null)}>
+                  <X size={15} />
+                </button>
+              </div>
+            )}
+          </LiveActivityProvider>
+        </div>
+      </WorkspaceBrand>
     </WorkspaceContext.Provider>
   );
 }
@@ -303,7 +319,9 @@ createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={client}>
       <BrowserRouter>
-        <App />
+        <AdminAccessProvider>
+          <App />
+        </AdminAccessProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

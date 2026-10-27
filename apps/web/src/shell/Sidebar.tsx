@@ -1,3 +1,5 @@
+import { useAdminAccess } from "../admin-access";
+import { BrandLink } from "../brand";
 import { useId, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,11 +77,17 @@ const useBadged = (badge?: NavBadge) => {
 
 // Settings sits beside the user in the footer rather than in the section list.
 function SettingsLink() {
+  const { requestAccess } = useAdminAccess();
+  const navigate = useNavigate();
   const { pathname } = useLocation(),
     active = activeSection(pathname) === "settings";
   return (
     <Link
       to={paths.settings()}
+      onClick={(event) => {
+        event.preventDefault();
+        void requestAccess(() => navigate(paths.settings()));
+      }}
       className={cx(
         "hf-btn hf-btn--ghost hf-btn--md hf-btn--icon hf-settings-link",
         active && "is-active",
@@ -434,6 +442,8 @@ function WorkspaceSwitcher({
 
 // No accounts: everything here belongs to whoever uses this computer.
 function LocalMenu({ collapsed }: { collapsed: boolean }) {
+  const { requestAccess } = useAdminAccess();
+  const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   return (
     <DropdownMenu
@@ -455,7 +465,10 @@ function LocalMenu({ collapsed }: { collapsed: boolean }) {
         </>
       }
     >
-      <MenuItem icon={Settings} to={paths.settings()}>
+      <MenuItem
+        icon={Settings}
+        onSelect={() => void requestAccess(() => navigate(paths.settings()))}
+      >
         Settings
       </MenuItem>
       <MenuItem icon={BookOpen} href="/api/docs" external>
@@ -499,11 +512,7 @@ export function Sidebar({
   return (
     <div className={cx("hf-sidebar-inner", collapsed && "is-collapsed")}>
       <div className="hf-brand-row">
-        <Link to="/" className="hf-brand" aria-label="Helix Foundry home">
-          <span className="hf-brand-name">
-            helix<span>foundry</span>
-          </span>
-        </Link>
+        <BrandLink />
         <button
           type="button"
           className="hf-btn hf-btn--ghost hf-btn--sm hf-btn--icon hf-search-button"

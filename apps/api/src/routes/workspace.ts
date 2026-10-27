@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import {
   BundleSchema,
   ProviderSchema,
+  WorkspaceSettingsSchema,
   ActivityKindSchema,
   collapseActivity,
   describeActivity,
@@ -24,6 +25,7 @@ import {
 } from "../assistant.js";
 import { testProvider, canReuseProviderKey } from "../providers.js";
 import { localAiMemory } from "../memory.js";
+import { workspaceSettings } from "../workspace-settings.js";
 import { homeMetrics, regenerateMetrics } from "../metrics.js";
 import {
   generationKinds,
@@ -32,6 +34,7 @@ import {
 } from "./deps.js";
 
 export const workspaceSchemas: RequestSchemas = {
+  "PUT /api/v1/workspaces/:w/settings": WorkspaceSettingsSchema,
   "PUT /api/v1/workspaces/:w/provider": ProviderSchema,
   "PUT /api/v1/workspaces/:w/proposals/:id": BundleSchema,
   "POST /api/v1/workspaces/:w/proposals/:id/publish": z.object({
@@ -82,6 +85,20 @@ export function registerWorkspaceRoutes(
   deps: RouteDeps,
 ) {
   const { access, scrub, visibleIn } = deps;
+  app.get("/api/v1/workspaces/:w/settings", async (req) => {
+    const a = await access(req);
+    return workspaceSettings(store, a.scope);
+  });
+  app.put("/api/v1/workspaces/:w/settings", async (req) => {
+    const a = await access(req, "owner"),
+      settings = WorkspaceSettingsSchema.parse(req.body);
+    await transaction(store, a.scope, async (tx) => {
+      const workspace = await tx.get("workspace");
+      assert(workspace, "Workspace not found", 404);
+      tx.update(workspace, { ...workspace.data, settings });
+    });
+    return settings;
+  });
   // Home's growth and analytics metrics: picked once (by the AI when it is set
   // up) and re-run by code when the data changes.
   app.get("/api/v1/workspaces/:w/home/metrics", async (req) => {

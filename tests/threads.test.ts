@@ -571,6 +571,69 @@ it("keeps values the engine quotes from a hosted model that may not see rows", a
   expect(JSON.stringify(contexts[1].repair)).not.toMatch(/987|4320/);
 });
 
+it.each([
+  ["总收入是多少？", "总收入"],
+  ["What is the total revenue?", "Total revenue"],
+  ["总收入是多少？Please answer in English.", "Total revenue"],
+])(
+  "keeps response-language guidance through query repair and summary: %s",
+  async (goal, title) => {
+    const calls: { system: string; context: unknown }[] = [];
+    let queries = 0;
+    vi.spyOn(Provider.prototype, "generate").mockImplementation(
+      async (system, context) => {
+        calls.push({ system, context });
+        if (system.includes("Choose answer"))
+          return { value: { intent: "answer" }, tokens: 1 };
+        if (system.includes("Summarise this query result"))
+          return { value: { summary: title, highlights: [] }, tokens: 1 };
+        return {
+          value: {
+            ...plan,
+            title,
+            sql:
+              queries++ === 0
+                ? "SELECT nope FROM " + datasetTable(plan.inputs[0])
+                : plan.sql,
+          },
+          tokens: 1,
+        };
+      },
+    );
+    const run = await answer((await ask(goal)).id);
+    expect(calls).toHaveLength(4);
+    for (const call of calls) {
+      expect(call.system).toContain(
+        "language explicitly requested by the user in goal",
+      );
+      expect(call.system).toContain(
+        "otherwise use the language of that current request",
+      );
+      expect(call.system).toContain("resource.previousQuestion");
+      expect(call.system).toContain(
+        "current request takes priority over previous questions and replies",
+      );
+      expect(call.system).toContain(
+        "SQL identifiers, dataset IDs and source record names unchanged",
+      );
+      expect(call.context).toMatchObject({ goal });
+    }
+    expect(calls[2].context).toMatchObject({
+      repair: { sql: expect.stringContaining("nope") },
+    });
+    expect(calls[3].context).toMatchObject({
+      result: { question: goal, rows: [{ revenue: "65" }] },
+    });
+    expect(run.data.answer).toMatchObject({
+      title,
+      summary: title,
+      sql: plan.sql,
+      inputs: plan.inputs,
+      rows: [{ revenue: "65" }],
+    });
+  },
+);
+
 it("adds a plain-language summary from the result rows, and still answers if it fails", async () => {
   const contexts: Record<string, any> = {};
   let summary: any = {
