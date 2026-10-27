@@ -1,0 +1,65 @@
+name: lynx-helixfoundry-zwmf6d
+x-app: &app
+  image: crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helix-foundry:20261028-c08d5a1
+  restart: unless-stopped
+  volumes: [foundry-data:/data]
+  environment: &env
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Required}
+    INTERNAL_KEY: ${INTERNAL_KEY:?Required}
+    ADMIN_TOKEN: ${ADMIN_TOKEN:?Required}
+    APP_ORIGIN: https://foundry.lynxai.work
+    HELIX_URL: http://helix:8080
+    EXECUTOR_URL: http://executor:3002
+    INLINE_WORKER: "false"
+    ALLOW_NETWORK_ACCESS: "true"
+    DATA_DIR: /data
+  networks: [default, execution]
+  depends_on:
+    helix:
+      condition: service_started
+services:
+  app:
+    <<: *app
+    oom_score_adj: 300
+    ports: ["127.0.0.1:6087:3001"]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+  worker:
+    <<: *app
+    command: [node, --import, tsx, apps/api/src/worker.ts]
+    oom_score_adj: 200
+  executor:
+    <<: *app
+    command: [node, --import, tsx, services/executor/src/server.ts]
+    environment:
+      INTERNAL_KEY: ${INTERNAL_KEY:?Required}
+      DATA_DIR: /data
+      EXECUTOR_HOST: 0.0.0.0
+      EXECUTOR_PORT: 3002
+      DUCKDB_MEMORY: 512MB
+    mem_limit: 2g
+    oom_score_adj: 300
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [execution]
+  helix:
+    image: crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helixdb:v0.0.12-amd64
+    restart: unless-stopped
+    environment:
+      HELIX_DATA_DIR: /var/lib/helix
+    mem_reservation: 2g
+    volumes: [helix-data:/var/lib/helix]
+networks:
+  execution:
+    internal: true
+volumes:
+  foundry-data:
+    external: true
+    name: lynx-helixfoundry-zwmf6d_foundry-data
+  helix-data:
+    external: true
+    name: lynx-helixfoundry-zwmf6d_helix-data
