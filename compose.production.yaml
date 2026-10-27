@@ -1,6 +1,6 @@
 name: lynx-helixfoundry-zwmf6d
 x-app: &app
-  image: crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helix-foundry:20261028-c08d5a1
+  image: crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helix-foundry:20261028-chat-delete
   restart: unless-stopped
   volumes: [foundry-data:/data]
   environment: &env
