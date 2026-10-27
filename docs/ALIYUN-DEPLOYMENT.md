@@ -5,13 +5,13 @@ The hosted instance is https://foundry.lynxai.work. Dokploy uses Raw Compose fro
 on the server. Autodeploy stays disabled.
 
 Build and push from this checkout, using the publishing machine's existing
-Docker login. Target AMD64 even on Apple Silicon. Use a new release tag for each
-application release, then update the image in `compose.production.yaml` and
-Dokploy before deploying manually.
+Docker login. Target AMD64 even on Apple Silicon. Publish `latest`, then deploy
+manually in Dokploy. Compose uses `pull_policy: always` to fetch the updated
+image on every deployment. Keep a release tag as well when rollback is needed.
 
 ```sh
 docker buildx build --platform linux/amd64 --file Dockerfile \
-  --tag crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helix-foundry:20261028-c08d5a1 \
+  --tag crpi-f7dryxdvv5k8r58p.cn-heyuan.personal.cr.aliyuncs.com/lynx-ai/helix-foundry:latest \
   --provenance=false --sbom=false --push .
 ```
 
