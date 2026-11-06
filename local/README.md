@@ -54,6 +54,16 @@ To name the install's default instead, set `FOUNDRY_AI_PROVIDER` (in the shell o
 
 Foundry runs in Docker, so a server on this computer is `host.docker.internal`, not `localhost`, and must answer on that address: turn on LM Studio's "Serve on Local Network". **On Linux, start Ollama with `OLLAMA_HOST=172.17.0.1`**, Docker's bridge address, which `host.docker.internal` is (`ip -4 addr show docker0` shows it if yours differs), so Docker can reach it and your network can't. That address exists once Docker runs, so start Ollama after it, and give the `ollama` command the same `OLLAMA_HOST`. `OLLAMA_HOST=0.0.0.0` works too, but opens Ollama, which takes no key, to every machine that can reach this one: use it only behind a firewall.
 
+### DeepSeek Responses
+
+The ontology-agent image rejects DeepSeek's `reasoning_text` content-part events. The optional local proxy removes just those two event types and forwards the remaining Responses stream to the agent. From the repository root, using the same Compose project name as your installation:
+
+```sh
+docker compose -f local/compose.yaml -f local/compose.deepseek.yaml up -d --no-deps deepseek-responses
+```
+
+In **Settings › AI models**, choose **Custom (OpenAI-compatible)**, select **Responses**, and use `http://127.0.0.1:18793` with your DeepSeek key and `deepseek-flash`. The endpoint listens on loopback inside the Compose pod and only forwards to `https://api.deepseek.com/responses`. Keep the override in the Compose command when managing this service.
+
 ### Ollama in Docker
 
 `docker compose --profile ollama up -d --wait` runs Ollama next to Foundry: nothing it is sent leaves this machine. The first start downloads its model in the background (`docker compose logs -f ollama-pull` shows it); once it is there, Foundry finds it (open Settings › AI models, or start again). The model is `qwen3.5:4b` for now, a candidate until a real draft on a GPU picks the smallest model that finishes one. It takes 5.7 GB of memory with drafting's 65,536-token window, so give Docker at least 10 GB; `qwen3.5:9b` takes 8.8 GB. Small models pass Foundry's test but may stop a draft early.

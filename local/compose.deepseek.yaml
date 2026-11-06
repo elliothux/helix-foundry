@@ -1,0 +1,6 @@
+# Use http://127.0.0.1:18793 as the OpenAI-compatible Responses endpoint.
+services:
+  deepseek-responses:
+    build: ./deepseek-responses
+    network_mode: service:pod
+    restart: unless-stopped
